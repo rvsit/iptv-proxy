@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 )
 
@@ -154,6 +155,19 @@ func (c *XtreamClient) GetCategories(catType string) ([]Category, error) {
 		cats[idx].Type = catType
 	}
 
+	sort.SliceStable(cats, func(i, j int) bool {
+		catA := cats[i]
+		catB := cats[j]
+		// If name starts with NL, move it to the top
+		if catA.Name[:2] == "NL" && catB.Name[:2] != "NL" {
+			return true
+		} else if catA.Name[:2] != "NL" && catB.Name[:2] == "NL" {
+			return false
+		}
+
+		return i < j
+	})
+
 	return cats, jsonErr
 }
 
@@ -198,7 +212,18 @@ func (c *XtreamClient) GetStreams(streamAction, categoryID string) ([]Stream, er
 		c.streams[int(stream.ID)] = stream
 	}
 
-	return streams, nil
+	filteredStreams := make([]Stream, 0)
+
+	// Skip the "cover" channels that start and end with "#"
+	for _, stream := range streams {
+		if stream.Name[0] == '#' && stream.Name[len(stream.Name)-1] == '#' {
+			continue
+		}
+
+		filteredStreams = append(filteredStreams, stream)
+	}
+
+	return filteredStreams, nil
 }
 
 // GetSeries will return a slice of all available Series.
